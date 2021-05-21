@@ -1,0 +1,16 @@
+# https://golangci-lint.run/usage/configuration/#config-file
+
+linters:
+  enable:
+    - megacheck
+    - govet
+    - gocritic
+    - gocyclo
+    - lll
+    - gofmt
+    - revive
+  disable-all: false
+  presets:
+    - bugs
+    - unused
+  fast: false
