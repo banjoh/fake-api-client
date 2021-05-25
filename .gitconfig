@@ -1,0 +1,10 @@
+[user]
+    name = Evans Mungai
+    email = mbuevans@gmail.com
+    signingkey = 7B52DA6BFE5AB54BDF2E335EBBEB812143DD14E1
+
+[commit]
+    gpgsign = true
+
+[gpg]
+    program = gpg

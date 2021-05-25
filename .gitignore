@@ -16,3 +16,4 @@
 
 # Ignore the service directory
 fake-service
+*.json
