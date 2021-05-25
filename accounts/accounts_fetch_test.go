@@ -11,6 +11,7 @@ import (
 	client "github.com/banjoh/fake-api-client"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFetchAccountSuccess(t *testing.T) {
@@ -43,7 +44,9 @@ func TestFetchAccountSuccess(t *testing.T) {
 		}, nil
 	}
 
-	accClient := NewWithClient(&mock)
+	accClient, err := NewWithClient(&mock)
+	require.NoError(t, err)
+
 	ctx := context.Background()
 
 	acc, err := accClient.Fetch(ctx, id)

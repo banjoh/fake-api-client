@@ -10,6 +10,7 @@ import (
 	client "github.com/banjoh/fake-api-client"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDeleteAccountSuccess(t *testing.T) {
@@ -21,10 +22,11 @@ func TestDeleteAccountSuccess(t *testing.T) {
 		}, nil
 	}
 
-	accClient := NewWithClient(&mock)
+	accClient, err := NewWithClient(&mock)
+	require.NoError(t, err)
 
 	ctx := context.Background()
-	err := accClient.Delete(ctx, uuid.New(), 0)
+	err = accClient.Delete(ctx, uuid.New(), 0)
 
 	assert.Nil(t, err)
 }
@@ -59,10 +61,11 @@ func TestDeleteAccountErrors(t *testing.T) {
 				}, nil
 			}
 
-			accClient := NewWithClient(&mock)
+			accClient, err := NewWithClient(&mock)
+			require.NoError(t, err)
 
 			ctx := context.Background()
-			err := accClient.Delete(ctx, uuid.New(), 0)
+			err = accClient.Delete(ctx, uuid.New(), 0)
 
 			assert.ErrorIs(t, err, tc.err)
 		})

@@ -27,7 +27,11 @@ func main() {
 		Attributes:     &attr,
 	}
 
-	accClient := accounts.New()
+	accClient, err := accounts.New()
+	if err != nil {
+		fmt.Printf("Failed creating client: err=%v\n", err)
+		os.Exit(1)
+	}
 	ctx := context.Background()
 
 	acc, err := accClient.Create(ctx, &accCreate)

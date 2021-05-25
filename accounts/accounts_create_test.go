@@ -11,6 +11,7 @@ import (
 	client "github.com/banjoh/fake-api-client"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreateAccountSuccess(t *testing.T) {
@@ -53,7 +54,9 @@ func TestCreateAccountSuccess(t *testing.T) {
 		},
 	}
 
-	accClient := NewWithClient(&mock)
+	accClient, err := NewWithClient(&mock)
+	require.NoError(t, err)
+
 	ctx := context.Background()
 
 	acc, err := accClient.Create(ctx, &accCreate)
@@ -75,14 +78,18 @@ func TestCreateAccountErrors(t *testing.T) {
 		body string
 		err  error
 	}{
-		"not found": {code: 404, body: "", err: &client.APIError{StatusCode: 404}},
-		"conflict": {
-			code: 409,
-			body: `{"error_message": "invalid version"}`,
+		"bad request": {
+			code: 400,
+			body: `{"error_message": "validation error"}`,
 			err: &client.APIError{
-				ErrorMessage: "invalid version",
-				ErrorCode:    "",
-				StatusCode:   http.StatusConflict,
+				ErrorMessage: "validation error",
+				StatusCode:   http.StatusBadRequest,
+			},
+		},
+		"unauthorized": {code: 401, body: "unauthorized",
+			err: &client.APIError{
+				StatusCode:   401,
+				ErrorMessage: "unauthorized",
 			},
 		},
 	}
@@ -99,11 +106,15 @@ func TestCreateAccountErrors(t *testing.T) {
 				}, nil
 			}
 
-			accClient := NewWithClient(&mock)
-			ctx := context.Background()
+			accClient, err := NewWithClient(&mock)
+			require.NoError(t, err)
 
-			err := accClient.Delete(ctx, uuid.New(), 0)
+			accCreate := AccountCreate{}
+			ctx := context.Background()
+			acc, err := accClient.Create(ctx, &accCreate)
+
 			assert.ErrorIs(t, err, tc.err)
+			assert.Nil(t, acc)
 		})
 	}
 }

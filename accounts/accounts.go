@@ -29,15 +29,22 @@ func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
 }
 
-func New() *Resource {
+// New creates a new instance of the accounts resource API
+// This client utilizes a default http client
+func New() (*Resource, error) {
 	return NewWithClient(client.DefaultClient)
 }
 
-func NewWithClient(c client.HTTPClient) *Resource {
+// NewWithClient creates a new instance of the accounts resource API
+// This client utilizes a dependency injected http client
+func NewWithClient(c client.HTTPClient) (*Resource, error) {
+	if c == nil {
+		return nil, fmt.Errorf("accounts.NewWithClient: nil client.HTTPClient")
+	}
 	return &Resource{
 		BaseURL: defultBaseURL,
 		client:  c,
-	}
+	}, nil
 }
 
 func (r *Resource) Create(ctx context.Context, acc *AccountCreate) (*Account, error) {
@@ -53,7 +60,7 @@ func (r *Resource) Create(ctx context.Context, acc *AccountCreate) (*Account, er
 
 	data, err := json.Marshal(dto)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("marshalling error: %w", err)
 	}
 
 	url := fmt.Sprintf("%s/%s", r.BaseURL, accountsPath)
@@ -62,7 +69,7 @@ func (r *Resource) Create(ctx context.Context, acc *AccountCreate) (*Account, er
 	body := bytes.NewReader(data)
 	req, err := http.NewRequestWithContext(ctx, "POST", url, body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	setPostDefaultHeaders(req)
@@ -70,7 +77,7 @@ func (r *Resource) Create(ctx context.Context, acc *AccountCreate) (*Account, er
 	// We only retry idempotent requests
 	resp, err := r.client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("request error: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -90,14 +97,14 @@ func (r *Resource) Fetch(ctx context.Context, accID uuid.UUID) (*Account, error)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	setDefaultHeaders(req)
 
 	resp, err := retriedDo(req, r.client)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("request error: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -119,14 +126,14 @@ func (r *Resource) Delete(ctx context.Context, accID uuid.UUID, version int) err
 
 	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create request: %w", err)
 	}
 
 	setDefaultHeaders(req)
 
 	resp, err := retriedDo(req, r.client)
 	if err != nil {
-		return err
+		return fmt.Errorf("request error: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -141,13 +148,13 @@ func (r *Resource) Delete(ctx context.Context, accID uuid.UUID, version int) err
 func unmarshalAccount(resp *http.Response) (*Account, error) {
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	var got AccountDTO
 	err = json.Unmarshal(b, &got)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unmarshaling err: %w", err)
 	}
 
 	return &got.Data, nil
@@ -156,7 +163,7 @@ func unmarshalAccount(resp *http.Response) (*Account, error) {
 func unmarshalErrorResponse(resp *http.Response) error {
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	if string(b) == "" {
@@ -168,7 +175,10 @@ func unmarshalErrorResponse(resp *http.Response) error {
 	var apiErr client.APIError
 	err = json.Unmarshal(b, &apiErr)
 	if err != nil {
-		return err
+		return &client.APIError{
+			StatusCode:   resp.StatusCode,
+			ErrorMessage: string(b),
+		}
 	}
 
 	apiErr.StatusCode = resp.StatusCode

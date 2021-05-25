@@ -4,6 +4,10 @@ import (
 	"fmt"
 )
 
+// APIError is used to encapsulate all API errors a server
+// responds with. These are not network or client-side generated
+// errors. The API error will contain an optional error message
+// and optional error code. The status will always be set
 type APIError struct {
 	ErrorMessage string `json:"error_message,omitempty"`
 	ErrorCode    string `json:"error_code,omitempty"`
