@@ -6,7 +6,9 @@ import (
 )
 
 var (
-	DefaultClient HttpClient
+	// DefaultClient is the client all resource API instances
+	// default to when instanciated using New()
+	DefaultClient HTTPClient
 )
 
 func init() {
@@ -28,7 +30,7 @@ func init() {
 	}
 }
 
-type HttpClient interface {
+type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 

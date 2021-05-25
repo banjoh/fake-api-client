@@ -16,7 +16,7 @@ func fixtures() map[string]struct {
 } {
 	version := 0
 	id := uuid.MustParse("ad27e265-9605-4b4b-a0e5-3003ea9cc4dc")
-	oId := uuid.MustParse("eb0bd6f5-c3f5-44b2-b677-acd23cdde73c")
+	oID := uuid.MustParse("eb0bd6f5-c3f5-44b2-b677-acd23cdde73c")
 	jointAcc := false
 
 	tests := map[string]struct {
@@ -48,7 +48,7 @@ func fixtures() map[string]struct {
 				Type:           "accounts",
 				ID:             &id,
 				Version:        &version,
-				OrganisationID: &oId,
+				OrganisationID: &oID,
 				ModifiedOn:     "2021-05-23T16:05:52.970Z",
 				Attributes: &Attributes{
 					Country:       "GB",

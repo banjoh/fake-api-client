@@ -50,7 +50,7 @@ type AccountCreateDTO struct {
 	Data AccountCreate `json:"data"`
 }
 
-type AccountsResource struct {
+type Resource struct {
 	BaseURL string
-	client  client.HttpClient
+	client  client.HTTPClient
 }

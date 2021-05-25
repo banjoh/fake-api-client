@@ -24,7 +24,6 @@ TODO: Provide an example of using the client in an application
 * ResourceAPI interface for other types of resources to implement
 
 ## TODO
-* A simple exponential backoff retry implementation
 * Increase test coverage
     * Error cases for Create & Fetch
     * Network transport errors e.g timeouts, no connection, DNS??, broken connections (io.Reader)
@@ -32,7 +31,6 @@ TODO: Provide an example of using the client in an application
 * Concurrency - many concurrent requests
 * Race conditions
 * Memory usage and leaks???
-* Run ALL static analysis tools
 * Document API
     * Expected errors
     * Input parameters

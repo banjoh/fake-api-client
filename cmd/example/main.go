@@ -18,12 +18,12 @@ func main() {
 	}
 
 	id := uuid.MustParse("ad27e266-9605-4b4b-a0e5-3003ea9cc4dc")
-	oId := uuid.MustParse("eb0bd6f5-c3f5-44b2-b677-acd23cdde73c")
+	oID := uuid.MustParse("eb0bd6f5-c3f5-44b2-b677-acd23cdde73c")
 
 	accCreate := accounts.AccountCreate{
 		Type:           "accounts",
 		ID:             &id,
-		OrganisationID: &oId,
+		OrganisationID: &oID,
 		Attributes:     &attr,
 	}
 

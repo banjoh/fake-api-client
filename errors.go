@@ -18,7 +18,7 @@ func (e *APIError) Error() string {
 }
 
 func (e *APIError) Is(target error) bool {
-	t, ok := target.(*APIError)
+	t, ok := target.(*APIError) // nolint: errorlint
 	if !ok {
 		return false
 	}
