@@ -27,7 +27,7 @@ ctx := context.Background()
 acc, err := client.Create(ctx, &accCreate)
 ```
 
-Making a request that we need to timeout if not complete by our given duration. This approach is also ideal if the library is used within a web application context where one would like to have the API calls cancellable.
+Making a request that we need to timeout if not complete by our given duration. This approach is also ideal if the library is used within a web application's http handler where one would like to have the API calls cancellable.
 ```go
 ctx, cancel := context.WithTimeout(context.Background(), 30 * time.Second)
 defer cancel()

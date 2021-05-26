@@ -118,3 +118,14 @@ func TestCreateAccountErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateAccountNilAccountCreate(t *testing.T) {
+	accClient, err := NewWithClient(&client.MockClient{}, &client.MockRetrySleeper{})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	acc, err := accClient.Create(ctx, nil)
+
+	assert.Error(t, err)
+	assert.Nil(t, acc)
+}

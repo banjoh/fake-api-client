@@ -251,6 +251,12 @@ func retriedDo(req *http.Request, c client.HTTPClient, s client.RetrySleeper) (*
 		// concurrent requests can exhaust server TCP connection resources
 		duration := (RetryDurationSecs + rand.Float64()) * 1000 // nolint: gosec
 
+		if resp != nil {
+			// Close previous response body stream. Not doing so
+			// might lead to socket connection leaks
+			resp.Body.Close()
+		}
+
 		resp, err = c.Do(req)
 		if err != nil {
 			// Retry network errors deemed retryable
