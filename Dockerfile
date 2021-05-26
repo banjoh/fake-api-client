@@ -4,4 +4,3 @@ FROM golang:buster
 
 WORKDIR /accounts-client
 COPY . .
-RUN ls -al

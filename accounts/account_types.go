@@ -30,7 +30,7 @@ type Account struct {
 	Version        *int        `json:"version,omitempty"`
 	OrganisationID *uuid.UUID  `json:"organisation_id,omitempty"`
 	Attributes     *Attributes `json:"attributes,omitempty"`
-	CreatedOn      string      `json:"created_on,omitempty"` // TODO: Time as time struct
+	CreatedOn      string      `json:"created_on,omitempty"` // DEBT: Parse string to time struct
 	ModifiedOn     string      `json:"modified_on,omitempty"`
 }
 

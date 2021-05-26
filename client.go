@@ -1,13 +1,15 @@
 package client
 
 import (
+	"math/rand"
 	"net/http"
 	"time"
 )
 
 var (
 	// DefaultClient is the client all resource API instances
-	// default to when instanciated using New()
+	// default to when instantiated using New(). The variable
+	// can also be used indipendently
 	DefaultClient HTTPClient
 )
 
@@ -24,10 +26,12 @@ func init() {
 	t.IdleConnTimeout = time.Second * 30
 
 	DefaultClient = &http.Client{
-		// TODO: What's the sanest timeout? Consider proxy timeouts
-		Timeout:   time.Second * 59, // Connect + Read timeout
+		Timeout:   time.Second * 60, // Connect + Read timeout
 		Transport: t,
 	}
+
+	// Random number generator for generating retry jitters
+	rand.Seed(time.Now().UTC().UnixNano())
 }
 
 type HTTPClient interface {

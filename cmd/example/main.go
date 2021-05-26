@@ -27,14 +27,13 @@ func main() {
 		Attributes:     &attr,
 	}
 
-	accClient, err := accounts.New()
+	client, err := accounts.New()
 	if err != nil {
 		fmt.Printf("Failed creating client: err=%v\n", err)
 		os.Exit(1)
 	}
 	ctx := context.Background()
-
-	acc, err := accClient.Create(ctx, &accCreate)
+	acc, err := client.Create(ctx, &accCreate)
 	if err != nil {
 		fmt.Printf("Failed creating acc: err=%v\n", err)
 		os.Exit(1)
@@ -42,7 +41,7 @@ func main() {
 
 	fmt.Printf("Created = %v\n", toJSON(acc))
 
-	acc, err = accClient.Fetch(ctx, id)
+	acc, err = client.Fetch(ctx, id)
 	if err != nil {
 		fmt.Printf("Failed fetching acc: id=%s, err=%v\n", id, err)
 		os.Exit(1)
@@ -50,7 +49,7 @@ func main() {
 
 	fmt.Printf("Fetch = %v\n", toJSON(acc))
 
-	err = accClient.Delete(ctx, id, *acc.Version)
+	err = client.Delete(ctx, id, *acc.Version)
 	if err != nil {
 		fmt.Printf("Failed deleting acc: id=%s, err=%v\n", id, err)
 		os.Exit(1)

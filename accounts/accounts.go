@@ -24,8 +24,6 @@ const (
 	defaultRetryCount     = 5
 )
 
-var retryableStatusCodes = []int{500, 502, 503, 504}
-
 // RetryCount denotes the number of times to retry requests
 // When RetryCount == 0, requests are not retried
 var RetryCount = defaultRetryCount
@@ -33,10 +31,6 @@ var RetryCount = defaultRetryCount
 // RetryDurationSecs is the number of seconds to sleep.
 // A random jitter is added to each sleep interval
 var RetryDurationSecs float64 = defaultRetrySleepSecs
-
-func init() {
-	rand.Seed(time.Now().UTC().UnixNano())
-}
 
 // New creates a new instance of the accounts resource API
 // This client utilizes a default http client
@@ -54,6 +48,7 @@ func NewWithClient(c client.HTTPClient, s client.RetrySleeper) (*Resource, error
 		return nil, fmt.Errorf("accounts.NewWithClient: nil client.RetrySleeper")
 	}
 
+	// DEBT: The base URL needs to be exposed so as to override it
 	return &Resource{
 		BaseURL:      defultBaseURL,
 		client:       c,
@@ -65,9 +60,9 @@ func NewWithClient(c client.HTTPClient, s client.RetrySleeper) (*Resource, error
 // This API is not idempotent and will therefore not be retried when errors occur.
 // * On success, an *Account is returns an the error will be nil
 // * On failure, the returned *Account will be nil. The error variable will contain
-//		* client.APIError if the response contained API specific errors
-//		* any other error that occured. This includes json marshaling errors,
-//		  network specific errors etc
+//   * client.APIError if the response contained API specific errors
+//	 * any other error that occured. This includes json marshaling errors,
+//	   network specific errors etc
 func (r *Resource) Create(ctx context.Context, acc *AccountCreate) (*Account, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("accounts.Create: nil Context")
@@ -113,9 +108,9 @@ func (r *Resource) Create(ctx context.Context, acc *AccountCreate) (*Account, er
 // This API is idempotent and will therefore be retried when some specific errors occur.
 // * On success, the queried account is returned in *Account and the error will be nil
 // * On failure, the returned *Account will be nil. The error variable will contain
-//		* client.APIError if the response contained API specific errors
-//		* any other error that occured. This includes json marshaling errors,
-//		  network specific errors etc
+//   * client.APIError if the response contained API specific errors
+//	 * any other error that occured. This includes json marshaling errors,
+//	   network specific errors etc
 func (r *Resource) Fetch(ctx context.Context, accID uuid.UUID) (*Account, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("accounts.Fetch: nil Context")
@@ -147,9 +142,9 @@ func (r *Resource) Fetch(ctx context.Context, accID uuid.UUID) (*Account, error)
 // This API is idempotent and will therefore be retried when some specific errors occur.
 // * On success, the account resource will be deleted and the error will be nil
 // * On failure, the returned error variable will contain
-//		* client.APIError if the response contained API specific errors
-//		* any other error that occured. This includes json marshaling errors,
-//		  network specific errors etc
+//   * client.APIError if the response contained API specific errors
+//	 * any other error that occured. This includes json marshaling errors,
+//	   network specific errors etc
 func (r *Resource) Delete(ctx context.Context, accID uuid.UUID, version int) error {
 	if ctx == nil {
 		return fmt.Errorf("accounts.Delete: nil Context")
@@ -232,16 +227,6 @@ func setPostDefaultHeaders(req *http.Request) {
 	setDefaultHeaders(req)
 }
 
-func containsStatus(statuses []int, status int) bool {
-	for _, s := range statuses {
-		if s == status {
-			return true
-		}
-	}
-
-	return false
-}
-
 func isTemporaryOrTimeout(err error) bool {
 	if ne, ok := err.(net.Error); ok && (ne.Temporary() || ne.Timeout()) { // nolint: errorlint
 		return true
@@ -280,14 +265,15 @@ func retriedDo(req *http.Request, c client.HTTPClient, s client.RetrySleeper) (*
 		}
 
 		// Retry API errors safe for retrying
-		if !containsStatus(retryableStatusCodes, resp.StatusCode) {
-			break
+		switch resp.StatusCode {
+		case 500, 502, 503, 504:
+			logrus.Debugf("Server responded with error. Retry request after %.0fms: code=%d, status=%s",
+				duration, resp.StatusCode, resp.Status,
+			)
+			s.Sleep(time.Duration(duration) * time.Millisecond)
+		default:
+			return resp, err
 		}
-
-		logrus.Debugf("Server responded with error. Retry request after %.0fms: code=%d, status=%s",
-			duration, resp.StatusCode, resp.Status,
-		)
-		s.Sleep(time.Duration(duration) * time.Millisecond)
 	}
 
 	return resp, err
