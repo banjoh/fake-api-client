@@ -41,3 +41,15 @@ type MockClient struct {
 func (m *MockClient) Do(req *http.Request) (*http.Response, error) {
 	return m.DoImpl(req)
 }
+
+type RetrySleeper interface {
+	Sleep(d time.Duration)
+}
+
+type DefaultRetrySleeper struct{}
+
+func (s *DefaultRetrySleeper) Sleep(d time.Duration) { time.Sleep(d) }
+
+type MockRetrySleeper struct{}
+
+func (s *MockRetrySleeper) Sleep(d time.Duration) {}

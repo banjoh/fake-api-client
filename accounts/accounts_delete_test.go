@@ -22,7 +22,7 @@ func TestDeleteAccountSuccess(t *testing.T) {
 		}, nil
 	}
 
-	accClient, err := NewWithClient(&mock)
+	accClient, err := NewWithClient(&mock, &client.MockRetrySleeper{})
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -61,7 +61,7 @@ func TestDeleteAccountErrors(t *testing.T) {
 				}, nil
 			}
 
-			accClient, err := NewWithClient(&mock)
+			accClient, err := NewWithClient(&mock, &client.MockRetrySleeper{})
 			require.NoError(t, err)
 
 			ctx := context.Background()

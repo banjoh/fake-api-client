@@ -51,6 +51,7 @@ type AccountCreateDTO struct {
 }
 
 type Resource struct {
-	BaseURL string
-	client  client.HTTPClient
+	BaseURL      string
+	client       client.HTTPClient
+	retrySleeper client.RetrySleeper
 }

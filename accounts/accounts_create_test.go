@@ -54,7 +54,7 @@ func TestCreateAccountSuccess(t *testing.T) {
 		},
 	}
 
-	accClient, err := NewWithClient(&mock)
+	accClient, err := NewWithClient(&mock, &client.MockRetrySleeper{})
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -106,7 +106,7 @@ func TestCreateAccountErrors(t *testing.T) {
 				}, nil
 			}
 
-			accClient, err := NewWithClient(&mock)
+			accClient, err := NewWithClient(&mock, &client.MockRetrySleeper{})
 			require.NoError(t, err)
 
 			accCreate := AccountCreate{}

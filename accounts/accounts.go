@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"math/rand"
 	"net"
 	"net/http"
@@ -14,16 +13,26 @@ import (
 
 	client "github.com/banjoh/fake-api-client"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 const (
 	defultBaseURL         = "http://localhost:8080"
 	accountsPath          = "v1/organisation/accounts"
 	defaultContentType    = "application/vnd.api+json"
-	initialBackoffSeconds = float64(0)
-	maxTimeoutSeconds     = float64(15)
+	defaultRetrySleepSecs = 2
 	defaultRetryCount     = 5
 )
+
+var retryableStatusCodes = []int{500, 502, 503, 504}
+
+// RetryCount denotes the number of times to retry requests
+// When RetryCount == 0, requests are not retried
+var RetryCount = defaultRetryCount
+
+// RetryDurationSecs is the number of seconds to sleep.
+// A random jitter is added to each sleep interval
+var RetryDurationSecs float64 = defaultRetrySleepSecs
 
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -32,18 +41,19 @@ func init() {
 // New creates a new instance of the accounts resource API
 // This client utilizes a default http client
 func New() (*Resource, error) {
-	return NewWithClient(client.DefaultClient)
+	return NewWithClient(client.DefaultClient, &client.DefaultRetrySleeper{})
 }
 
 // NewWithClient creates a new instance of the accounts resource API
 // This client utilizes a dependency injected http client
-func NewWithClient(c client.HTTPClient) (*Resource, error) {
+func NewWithClient(c client.HTTPClient, s client.RetrySleeper) (*Resource, error) {
 	if c == nil {
 		return nil, fmt.Errorf("accounts.NewWithClient: nil client.HTTPClient")
 	}
 	return &Resource{
-		BaseURL: defultBaseURL,
-		client:  c,
+		BaseURL:      defultBaseURL,
+		client:       c,
+		retrySleeper: s,
 	}, nil
 }
 
@@ -74,7 +84,7 @@ func (r *Resource) Create(ctx context.Context, acc *AccountCreate) (*Account, er
 
 	setPostDefaultHeaders(req)
 
-	// We only retry idempotent requests
+	// We only retry idempotent requests i.e GET, DELETE
 	resp, err := r.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request error: %w", err)
@@ -102,7 +112,7 @@ func (r *Resource) Fetch(ctx context.Context, accID uuid.UUID) (*Account, error)
 
 	setDefaultHeaders(req)
 
-	resp, err := retriedDo(req, r.client)
+	resp, err := retriedDo(req, r.client, r.retrySleeper)
 	if err != nil {
 		return nil, fmt.Errorf("request error: %w", err)
 	}
@@ -131,7 +141,7 @@ func (r *Resource) Delete(ctx context.Context, accID uuid.UUID, version int) err
 
 	setDefaultHeaders(req)
 
-	resp, err := retriedDo(req, r.client)
+	resp, err := retriedDo(req, r.client, r.retrySleeper)
 	if err != nil {
 		return fmt.Errorf("request error: %w", err)
 	}
@@ -161,23 +171,23 @@ func unmarshalAccount(resp *http.Response) (*Account, error) {
 }
 
 func unmarshalErrorResponse(resp *http.Response) error {
-	b, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	if string(b) == "" {
+	if string(body) == "" {
 		return &client.APIError{
 			StatusCode: resp.StatusCode,
 		}
 	}
 
 	var apiErr client.APIError
-	err = json.Unmarshal(b, &apiErr)
+	err = json.Unmarshal(body, &apiErr)
 	if err != nil {
 		return &client.APIError{
 			StatusCode:   resp.StatusCode,
-			ErrorMessage: string(b),
+			ErrorMessage: string(body),
 		}
 	}
 
@@ -215,55 +225,45 @@ func isTemporaryOrTimeout(err error) bool {
 	return false
 }
 
-func retriedDo(req *http.Request, c client.HTTPClient) (*http.Response, error) {
-	tryableStatuses := []int{500, 502, 503, 504}
+// retriedDo implements a simple retry logic for temporary error situations
+func retriedDo(req *http.Request, c client.HTTPClient, s client.RetrySleeper) (*http.Response, error) {
+	if RetryCount < 1 || RetryDurationSecs <= 0 {
+		return c.Do(req)
+	}
 
 	var resp *http.Response
 	var err error
-	durationSecs := nextBackoff(initialBackoffSeconds)
-	for i := 0; i < defaultRetryCount; i++ {
+
+	for i := 0; i < RetryCount; i++ {
+
+		// sleep + jitter. An additional jitter is necessary so as to
+		// avoid many clients retrying at the exact same time. The many
+		// concurrent requests can exhaust server TCP connection resources
+		duration := (RetryDurationSecs + rand.Float64()) * 1000 // nolint: gosec
+
 		resp, err = c.Do(req)
 		if err != nil {
 			// Retry network errors deemed retryable
 			if !isTemporaryOrTimeout(err) {
-				duration := time.Duration(durationSecs * float64(time.Millisecond))
-				time.Sleep(duration)
+				logrus.Debugf("Network error caught. Retry request after %.0fms: err=%s", duration, err)
+				s.Sleep(time.Duration(duration) * time.Millisecond)
 
-				// Get the next back off duration
-				durationSecs = nextBackoff(durationSecs)
 				continue
 			} else {
 				return nil, err
 			}
 		}
 
-		if !containsStatus(tryableStatuses, resp.StatusCode) {
-			return resp, nil
+		// Retry API errors safe for retrying
+		if !containsStatus(retryableStatusCodes, resp.StatusCode) {
+			break
 		}
 
-		duration := time.Duration(durationSecs * float64(time.Millisecond))
-		time.Sleep(duration)
-
-		// Get the next back off duration
-		durationSecs = nextBackoff(durationSecs)
+		logrus.Debugf("Server responded with error. Retry request after %.0fms: code=%d, status=%s",
+			duration, resp.StatusCode, resp.Status,
+		)
+		s.Sleep(time.Duration(duration) * time.Millisecond)
 	}
 
-	return resp, nil
-}
-
-func nextBackoff(curr float64) float64 {
-	if curr <= 0 {
-		return 1 + rand.Float64() // nolint: gosec
-	}
-
-	next := math.Floor(curr)
-
-	if next < maxTimeoutSeconds {
-		next *= 2
-	}
-
-	// Next back-off + some jitter. The jitter is necessary so as to
-	// to avoid many clients retrying at the exact same time. The many
-	// concurrent requests can exhaust the servers TCP connections
-	return next + rand.Float64() // nolint: gosec
+	return resp, err
 }

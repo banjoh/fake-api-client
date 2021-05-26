@@ -44,11 +44,10 @@ func TestFetchAccountSuccess(t *testing.T) {
 		}, nil
 	}
 
-	accClient, err := NewWithClient(&mock)
+	accClient, err := NewWithClient(&mock, &client.MockRetrySleeper{})
 	require.NoError(t, err)
 
 	ctx := context.Background()
-
 	acc, err := accClient.Fetch(ctx, id)
 
 	assert.NotNil(t, acc)
@@ -60,4 +59,46 @@ func TestFetchAccountSuccess(t *testing.T) {
 	assert.Equal(t, []string{"John Doe"}, acc.Attributes.Name)
 	assert.Equal(t, "2021-05-25T04:29:11.898Z", acc.CreatedOn)
 	assert.Equal(t, "2021-05-25T04:29:11.898Z", acc.ModifiedOn)
+}
+
+func TestFetchAccountErrors(t *testing.T) {
+	tests := map[string]struct {
+		code int
+		body string
+		err  error
+	}{
+		"not found": {code: 404, body: "", err: &client.APIError{StatusCode: 404}},
+		"not implemented": {
+			code: 501,
+			body: "Not Implemented",
+			err: &client.APIError{
+				ErrorMessage: "Not Implemented",
+				ErrorCode:    "",
+				StatusCode:   http.StatusNotImplemented,
+			},
+		},
+	}
+
+	for name, tc := range tests {
+		tc := tc
+		t.Run(name, func(t *testing.T) {
+			body := io.NopCloser(bytes.NewReader([]byte(tc.body)))
+			mock := client.MockClient{}
+			mock.DoImpl = func(*http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: tc.code,
+					Body:       body,
+				}, nil
+			}
+
+			accClient, err := NewWithClient(&mock, &client.MockRetrySleeper{})
+			require.NoError(t, err)
+
+			ctx := context.Background()
+			acc, err := accClient.Fetch(ctx, uuid.New())
+
+			assert.ErrorIs(t, err, tc.err)
+			assert.Nil(t, acc)
+		})
+	}
 }

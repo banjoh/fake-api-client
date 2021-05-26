@@ -28,7 +28,6 @@ TODO: Provide an example of using the client in an application
     * Error cases for Create & Fetch
     * Network transport errors e.g timeouts, no connection, DNS??, broken connections (io.Reader)
     * Retry logic
-* Concurrency - many concurrent requests
 * Race conditions
 * Memory usage and leaks???
 * Document API
