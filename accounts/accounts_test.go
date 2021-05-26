@@ -105,3 +105,15 @@ func TestRetryingCalls(t *testing.T) {
 		})
 	}
 }
+
+func TestConstructingClientNilHTTPClient(t *testing.T) {
+	r, err := NewWithClient(nil, &client.MockRetrySleeper{})
+	assert.Error(t, err)
+	assert.Nil(t, r)
+}
+
+func TestConstructingClientNilRetrySleeper(t *testing.T) {
+	r, err := NewWithClient(&client.MockClient{}, nil)
+	assert.Error(t, err)
+	assert.Nil(t, r)
+}

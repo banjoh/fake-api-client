@@ -45,11 +45,15 @@ func New() (*Resource, error) {
 }
 
 // NewWithClient creates a new instance of the accounts resource API
-// This client utilizes a dependency injected http client
+// This client requires a dependency injected http client and retry sleeper
 func NewWithClient(c client.HTTPClient, s client.RetrySleeper) (*Resource, error) {
 	if c == nil {
 		return nil, fmt.Errorf("accounts.NewWithClient: nil client.HTTPClient")
 	}
+	if s == nil {
+		return nil, fmt.Errorf("accounts.NewWithClient: nil client.RetrySleeper")
+	}
+
 	return &Resource{
 		BaseURL:      defultBaseURL,
 		client:       c,
@@ -57,6 +61,13 @@ func NewWithClient(c client.HTTPClient, s client.RetrySleeper) (*Resource, error
 	}, nil
 }
 
+// Create an account resource
+// This API is not idempotent and will therefore not be retried when errors occur.
+// * On success, an *Account is returns an the error will be nil
+// * On failure, the returned *Account will be nil. The error variable will contain
+//		* client.APIError if the response contained API specific errors
+//		* any other error that occured. This includes json marshaling errors,
+//		  network specific errors etc
 func (r *Resource) Create(ctx context.Context, acc *AccountCreate) (*Account, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("accounts.Create: nil Context")
@@ -98,6 +109,13 @@ func (r *Resource) Create(ctx context.Context, acc *AccountCreate) (*Account, er
 	return nil, unmarshalErrorResponse(resp)
 }
 
+// Fetch an account resource
+// This API is idempotent and will therefore be retried when some specific errors occur.
+// * On success, the queried account is returned in *Account and the error will be nil
+// * On failure, the returned *Account will be nil. The error variable will contain
+//		* client.APIError if the response contained API specific errors
+//		* any other error that occured. This includes json marshaling errors,
+//		  network specific errors etc
 func (r *Resource) Fetch(ctx context.Context, accID uuid.UUID) (*Account, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("accounts.Fetch: nil Context")
@@ -125,6 +143,13 @@ func (r *Resource) Fetch(ctx context.Context, accID uuid.UUID) (*Account, error)
 	return nil, unmarshalErrorResponse(resp)
 }
 
+// Delete an account resource
+// This API is idempotent and will therefore be retried when some specific errors occur.
+// * On success, the account resource will be deleted and the error will be nil
+// * On failure, the returned error variable will contain
+//		* client.APIError if the response contained API specific errors
+//		* any other error that occured. This includes json marshaling errors,
+//		  network specific errors etc
 func (r *Resource) Delete(ctx context.Context, accID uuid.UUID, version int) error {
 	if ctx == nil {
 		return fmt.Errorf("accounts.Delete: nil Context")
